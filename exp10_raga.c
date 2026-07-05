@@ -1,91 +1,71 @@
-/*
- * Experiment 10: Resource-Allocation Graph Algorithm (Deadlock Detection)
- * Uses the "reduction" method: an Allocation and Request matrix, plus
- * an Available resource vector, to check if the system is in a safe /
- * deadlock-free state.
- *
- * Compile : gcc exp10_raga.c -o raga
- * Run     : ./raga
- */
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdbool.h>
 
-int main() {
-    int n, m, i, j;
+int adj[20][20];
+bool visited[20];
+bool recStack[20];
+int vertices;
 
-    printf("Enter number of processes: ");
-    scanf("%d", &n);
-    printf("Enter number of resource types: ");
-    scanf("%d", &m);
+bool isCyclicUtil(int v) {
+    if (!visited[v]) {
+        visited[v] = true;
+        recStack[v] = true;
 
-    int alloc[n][m], request[n][m];
-    int available[m];
-    int finish[n];
-
-    printf("\nEnter the Allocation matrix (%d x %d):\n", n, m);
-    for (i = 0; i < n; i++) {
-        printf("Process P%d: ", i);
-        for (j = 0; j < m; j++)
-            scanf("%d", &alloc[i][j]);
-        finish[i] = 0;
-    }
-
-    printf("\nEnter the Request matrix (%d x %d):\n", n, m);
-    for (i = 0; i < n; i++) {
-        printf("Process P%d: ", i);
-        for (j = 0; j < m; j++)
-            scanf("%d", &request[i][j]);
-    }
-
-    printf("\nEnter the Available vector (%d values):\n", m);
-    for (j = 0; j < m; j++)
-        scanf("%d", &available[j]);
-
-    int work[m];
-    for (j = 0; j < m; j++) work[j] = available[j];
-
-    int sequence[n], seq_count = 0;
-    int changed = 1;
-
-    while (changed) {
-        changed = 0;
-        for (i = 0; i < n; i++) {
-            if (!finish[i]) {
-                int can_proceed = 1;
-                for (j = 0; j < m; j++) {
-                    if (request[i][j] > work[j]) {
-                        can_proceed = 0;
-                        break;
-                    }
-                }
-                if (can_proceed) {
-                    for (j = 0; j < m; j++)
-                        work[j] += alloc[i][j];
-                    finish[i] = 1;
-                    sequence[seq_count++] = i;
-                    changed = 1;
-                }
+        for (int i = 0; i < vertices; i++) {
+            if (adj[v][i]) {
+                if (!visited[i] && isCyclicUtil(i))
+                    return true;
+                else if (recStack[i])
+                    return true;
             }
         }
     }
+    recStack[v] = false;
+    return false;
+}
 
-    int deadlock = 0;
-    printf("\n--- Result ---\n");
-    for (i = 0; i < n; i++) {
-        if (!finish[i]) {
-            deadlock = 1;
-            printf("Process P%d is STUCK (part of deadlock / cycle)\n", i);
+int main() {
+    int p, r;
+    printf("Enter total number of Processes: ");
+    if (scanf("%d", &p) != 1) return 1;
+    printf("Enter total number of Resource Types: ");
+    if (scanf("%d", &r) != 1) return 1;
+
+    vertices = p + r; // Total nodes in the graph
+
+    // Clear structures
+    for (int i = 0; i < vertices; i++) {
+        visited[i] = false;
+        recStack[i] = false;
+        for (int j = 0; j < vertices; j++) adj[i][j] = 0;
+    }
+
+    printf("\n--- Setup Adjacency Mappings ---\n");
+    printf("Nodes 0 to %d map to Processes. Nodes %d to %d map to Resources.\n", p - 1, p, vertices - 1);
+    
+    int edges;
+    printf("Enter number of direct edge links existing: ");
+    if (scanf("%d", &edges) != 1) return 1;
+
+    for (int i = 0; i < edges; i++) {
+        int u, v;
+        printf("Enter source vertex index and destination vertex index (u -> v): ");
+        if (scanf("%d %d", &u, &v) != 2) return 1;
+        adj[u][v] = 1;
+    }
+
+    bool deadlock = false;
+    for (int i = 0; i < vertices; i++) {
+        if (isCyclicUtil(i)) {
+            deadlock = true;
+            break;
         }
     }
 
-    if (!deadlock) {
-        printf("No deadlock detected. Safe completion sequence: ");
-        for (i = 0; i < seq_count; i++)
-            printf("P%d ", sequence[i]);
-        printf("\n");
+    if (deadlock) {
+        printf("\nResult: Cycle found in Resource Allocation Graph! Deadlock detected.\n");
     } else {
-        printf("Deadlock DETECTED in the system!\n");
+        printf("\nResult: Safe state! No cycles found. No Deadlocks detected.\n");
     }
-
     return 0;
 }
